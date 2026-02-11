@@ -1,0 +1,52 @@
+version: '3.8'
+
+# 生产环境配置
+# 使用方式: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: music-app-backend-prod
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=file:./prisma/prod.db
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+    volumes:
+      - ./data/prisma:/app/prisma
+      - ./data/uploads:/app/uploads
+    networks:
+      - music-app-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: music-app-frontend-prod
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - music-app-network
+
+networks:
+  music-app-network:
+    driver: bridge
+
+# 生产环境建议添加：
+# 1. 反向代理（Nginx Proxy Manager、Traefik）
+# 2. SSL/TLS 证书
+# 3. 监控（Prometheus + Grafana）
+# 4. 日志收集（ELK Stack）

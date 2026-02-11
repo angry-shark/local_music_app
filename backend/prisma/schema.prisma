@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      String   @default("USER") // USER, ARTIST, ADMIN
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联
+  songs       Song[]         // 歌手上传的歌曲
+  playlists   Playlist[]     // 创建的歌单
+  favorites   UserFavorite[] // 收藏的歌曲
+}
+
+// 歌曲表
+model Song {
+  id          Int      @id @default(autoincrement())
+  title       String
+  artistId    Int
+  artistName  String   // 冗余存储歌手名，方便查询
+  audioUrl    String   // 音频文件地址
+  coverUrl    String?  // 封面图片地址
+  duration    Int      // 时长（秒）
+  lyrics      String?  // 歌词
+  isPublic    Boolean  @default(true) // 是否公开
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联
+  artist      User           @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  playlists   PlaylistSong[]
+  favorites   UserFavorite[]
+}
+
+// 歌单表
+model Playlist {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  coverUrl    String?
+  userId      Int
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  songs       PlaylistSong[]
+}
+
+// 歌单歌曲关联表
+model PlaylistSong {
+  id         Int      @id @default(autoincrement())
+  playlistId Int
+  songId     Int
+  order      Int      @default(0) // 歌曲在歌单中的顺序
+  addedAt    DateTime @default(now())
+
+  // 关联
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, songId])
+}
+
+// 用户收藏表
+model UserFavorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  songId    Int
+  createdAt DateTime @default(now())
+
+  // 关联
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song      Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, songId])
+}
