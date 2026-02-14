@@ -7,6 +7,7 @@ import {
   MusicalNoteIcon, 
   QueueListIcon, 
   Cog6ToothIcon,
+  MagnifyingGlassIcon,
   ArrowRightOnRectangleIcon,
   PlayIcon,
   PauseIcon,
@@ -54,6 +55,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { path: '/', label: '首页', icon: HomeIcon },
     { path: '/songs', label: '歌曲', icon: MusicalNoteIcon },
+    { path: '/external-search', label: '外部搜索', icon: MagnifyingGlassIcon },
     { path: '/playlists', label: '歌单', icon: QueueListIcon },
   ];
 

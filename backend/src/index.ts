@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import authRoutes from './routes/auth';
 import songRoutes from './routes/songs';
+import externalSongRoutes from './routes/external-songs';
 import playlistRoutes from './routes/playlists';
 import userRoutes from './routes/users';
 
@@ -19,6 +20,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // 路由
 app.use('/api/auth', authRoutes);
 app.use('/api/songs', songRoutes);
+app.use('/api/external-songs', externalSongRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/users', userRoutes);
 

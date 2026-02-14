@@ -20,6 +20,7 @@
   "description": "",
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@suen/music-api": "^1.1.16",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",

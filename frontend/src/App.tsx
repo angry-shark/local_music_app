@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 // Pages
 import Home from './pages/Home';
 import Songs from './pages/Songs';
+import ExternalSearch from './pages/ExternalSearch';
 import Playlists from './pages/Playlists';
 import PlaylistDetail from './pages/PlaylistDetail';
 import AddSongsToPlaylist from './pages/AddSongsToPlaylist';
@@ -83,6 +84,11 @@ function App() {
         <Route path="/songs" element={
           <ProtectedRoute>
             <Layout><Songs /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/external-search" element={
+          <ProtectedRoute>
+            <Layout><ExternalSearch /></Layout>
           </ProtectedRoute>
         } />
         <Route path="/playlists" element={
