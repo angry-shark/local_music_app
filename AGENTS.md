@@ -21,15 +21,16 @@
 local_music_app/
 ├── backend/          # 后端 API 服务
 │   ├── src/
-│   │   ├── routes/   # API 路由 (auth, songs, playlists, users)
+│   │   ├── routes/   # API 路由 (auth, songs, playlists, users, external-songs)
 │   │   ├── middleware/  # 认证中间件
 │   │   └── utils/    # 工具函数
 │   └── prisma/       # 数据库模型
 ├── frontend/         # 前端 React 应用
 │   └── src/
-│       ├── pages/    # 页面组件
+│       ├── pages/    # 页面组件 (含 ExternalSearch.tsx)
 │       ├── components/  # 可复用组件
 │       └── stores/   # Zustand 状态管理
+├── start-dev.sh      # 本地开发启动脚本
 └── README.md
 ```
 
@@ -66,15 +67,37 @@ make deploy
 
 ### 本地开发
 
-```bash
-# 1. 预置示例数据（可选）
-cd backend && npm run db:seed
+#### 快速启动
 
-# 2. 启动后端（端口 3001）
+```bash
+# 使用脚本同时启动前后端
+./start-dev.sh
+```
+
+或分别启动：
+
+```bash
+# 终端 1：启动后端（端口 3001）
 cd backend && npm run dev
 
-# 3. 启动前端（端口 5173）
+# 终端 2：启动前端（端口 5173，已配置代理）
 cd frontend && npm run dev
+```
+
+访问地址：
+- 前端页面：http://localhost:5173
+- 后端 API：http://localhost:3001
+
+#### 开发配置
+
+- **前端代理**：Vite 配置已添加代理，开发时 `/api` 请求自动转发到后端
+- **环境变量**：
+  - `frontend/.env.development` - 开发环境（使用相对路径）
+  - `frontend/.env.production` - 生产环境
+
+```bash
+# 预置示例数据（可选）
+cd backend && npm run db:seed
 ```
 
 ## 功能特性
@@ -83,7 +106,8 @@ cd frontend && npm run dev
 - ✅ 角色系统：使用者、歌手、管理员
 - ✅ 音乐播放器（播放、暂停、切歌、进度控制）
 - ✅ 歌单管理（创建、编辑、删除）
-- ✅ 歌曲搜索
+- ✅ 歌曲搜索（本地 + 外部音乐源）
+- ✅ 外部音乐搜索（网易云、QQ音乐、虾米音乐）
 - ✅ 收藏功能
 - ✅ 歌手后台（管理自己的歌曲）
 - ✅ 管理员后台（管理所有内容）
@@ -98,21 +122,28 @@ cd frontend && npm run dev
 
 ## 外部音乐搜索
 
-外部歌曲搜索通过转发到 **qq-music-api** 服务实现。
+外部歌曲搜索通过 `@suen/music-api` npm 包实现，支持多平台音乐搜索。
 
-### 环境变量
+### 支持平台
 
-- `QQ_MUSIC_API_URL` - qq-music-api 服务地址，默认 `http://localhost:3300`
+- **网易云音乐** (`netease`)
+- **QQ音乐** (`qq`)
+- **虾米音乐** (`xiami`)
 
-### 可用端点
+### 后端 API 端点
 
-- `GET /api/external-songs/search?keyword=xxx&offset=0` - 搜索歌曲（QQ音乐）
-- `GET /api/external-songs/search/:vendor` - 指定平台搜索（目前仅支持 `qq`）
+- `GET /api/external-songs/search?keyword=xxx&offset=0` - 聚合搜索（全平台）
+- `GET /api/external-songs/search/:vendor` - 指定平台搜索
 - `GET /api/external-songs/detail?vendor=xxx&id=xxx` - 获取歌曲详情
 - `POST /api/external-songs/batch-detail` - 批量获取歌曲详情
 - `GET /api/external-songs/url?vendor=xxx&id=xxx` - 获取歌曲播放地址
 - `GET /api/external-songs/lyric?vendor=xxx&id=xxx` - 获取歌词
 - `GET /api/external-songs/artist/:vendor/:id` - 获取歌手单曲
+
+### 前端页面
+
+- 路径：`/external-search`
+- 功能：搜索、播放外部音乐资源
 
 ---
 *Last updated: 2026-02-14*

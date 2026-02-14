@@ -100,6 +100,29 @@ make help           # 查看所有命令
 
 ### 方式二：本地开发环境
 
+#### 快速启动（推荐）
+
+使用以下命令同时启动前后端：
+
+```bash
+# 终端 1：启动后端
+cd backend && npm run dev
+
+# 终端 2：启动前端（新窗口）
+cd frontend && npm run dev
+```
+
+访问应用：
+- 前端页面：http://localhost:5173
+- 后端 API：http://localhost:3001
+
+#### 配置说明
+
+- **前端代理**：已配置 Vite 代理，开发时前端请求 `/api` 会自动转发到 `http://localhost:3001`
+- **环境变量**：
+  - 开发环境：`frontend/.env.development`（使用代理）
+  - 生产环境：`frontend/.env.production`
+
 ### 预置数据（可选）
 
 项目已预置了 65 首真实热门华语歌曲和 10 个精选歌单：
@@ -229,6 +252,15 @@ local_music_app/
 - `DELETE /api/playlists/:id` - 删除歌单
 - `POST /api/playlists/:id/songs` - 添加歌曲到歌单
 - `DELETE /api/playlists/:id/songs/:songId` - 从歌单移除歌曲
+
+### 外部音乐搜索（新增）
+- `GET /api/external-songs/search?keyword=xxx&offset=0` - 聚合搜索（网易云+QQ+虾米）
+- `GET /api/external-songs/search/:vendor?keyword=xxx` - 指定平台搜索
+- `GET /api/external-songs/detail?vendor=xxx&id=xxx` - 获取歌曲详情
+- `POST /api/external-songs/batch-detail` - 批量获取歌曲详情
+- `GET /api/external-songs/url?vendor=xxx&id=xxx` - 获取播放地址
+- `GET /api/external-songs/lyric?vendor=xxx&id=xxx` - 获取歌词
+- `GET /api/external-songs/artist/:vendor/:id` - 获取歌手单曲
 
 ### 用户
 - `GET /api/users/me` - 获取当前用户
