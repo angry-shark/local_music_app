@@ -1,0 +1,7 @@
+{
+  "name": "qq-music-api-server",
+  "version": "1.0.0",
+  "dependencies": {
+    "qq-music-api": "^1.1.2"
+  }
+}

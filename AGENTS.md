@@ -45,6 +45,25 @@ make deploy
 ./deploy.sh
 ```
 
+### 服务架构
+
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│   frontend  │──────▶│   backend   │──────▶│qq-music-api │
+│   (nginx)   │      │  (express)  │      │  (QQ音乐API) │
+└─────────────┘      └─────────────┘      └─────────────┘
+                            │
+                            ▼
+                     ┌─────────────┐
+                     │   SQLite    │
+                     └─────────────┘
+```
+
+- **frontend**: 前端服务 (端口 80)
+- **backend**: 后端 API 服务 (端口 3001)
+- **qq-music-api**: QQ 音乐 API 服务 (端口 3300)
+- **SQLite**: 本地数据库
+
 ### 本地开发
 
 ```bash
@@ -77,5 +96,23 @@ cd frontend && npm run dev
 - `GET /api/playlists` - 歌单列表
 - 更多见 README.md
 
+## 外部音乐搜索
+
+外部歌曲搜索通过转发到 **qq-music-api** 服务实现。
+
+### 环境变量
+
+- `QQ_MUSIC_API_URL` - qq-music-api 服务地址，默认 `http://localhost:3300`
+
+### 可用端点
+
+- `GET /api/external-songs/search?keyword=xxx&offset=0` - 搜索歌曲（QQ音乐）
+- `GET /api/external-songs/search/:vendor` - 指定平台搜索（目前仅支持 `qq`）
+- `GET /api/external-songs/detail?vendor=xxx&id=xxx` - 获取歌曲详情
+- `POST /api/external-songs/batch-detail` - 批量获取歌曲详情
+- `GET /api/external-songs/url?vendor=xxx&id=xxx` - 获取歌曲播放地址
+- `GET /api/external-songs/lyric?vendor=xxx&id=xxx` - 获取歌词
+- `GET /api/external-songs/artist/:vendor/:id` - 获取歌手单曲
+
 ---
-*Last updated: 2026-02-11*
+*Last updated: 2026-02-14*

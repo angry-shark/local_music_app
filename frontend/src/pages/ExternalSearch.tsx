@@ -213,8 +213,8 @@ export default function ExternalSearch() {
             <tbody className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
               {vendorResults.songs.map((song, index) => {
                 const songId = `external-${vendor}-${song.id}`;
-                const isCurrentSong = currentSong?.id === songId;
-                const isLoading = playingSong?.id === song.id;
+                const isCurrentSong = currentSong != null && (currentSong.id as string | number) === songId;
+                const isLoading = playingSong != null && song.id != null && playingSong.id == song.id;
 
                 return (
                   <tr

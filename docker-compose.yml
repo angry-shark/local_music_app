@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  # QQ音乐API服务
+  qq-music-api:
+    build:
+      context: ./qq-music-api
+      dockerfile: Dockerfile
+    container_name: music-app-qq-music-api
+    restart: unless-stopped
+    ports:
+      - "3300:3300"
+    environment:
+      - NODE_ENV=production
+      - PORT=3300
+      # 如需获取播放链接，请配置 QQ 音乐 Cookie（从浏览器复制）
+      # - QQ_MUSIC_COOKIE=uin=123456;qqmusic_key=xxx;...
+      - QQ_MUSIC_COOKIE=wxuin=1152921504779536828; qqmusic_key=W_X_63B0amGacq7BivkK9VGzGsZKaE7r5nNs_0Zx4hMgxaaWkBYWBQxvtcatNtAXMzbNat-9smzHAOry5omrVjN1oDx5vTcZtQQ; login_type=2; uin=1152921504779536828
+    networks:
+      - music-app-network
+
   # 后端服务
   backend:
     build:
@@ -15,9 +33,12 @@ services:
       - PORT=3001
       - DATABASE_URL=file:./prisma/dev.db
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - QQ_MUSIC_API_URL=http://qq-music-api:3300
     volumes:
       - ./backend/prisma:/app/prisma
       - ./backend/uploads:/app/uploads
+    depends_on:
+      - qq-music-api
     networks:
       - music-app-network
 

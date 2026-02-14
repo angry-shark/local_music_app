@@ -1,10 +1,40 @@
 import { Router } from 'express';
-import musicApi from '@suen/music-api';
 
 const router = Router();
 
+// qq-music-api 服务地址，可通过环境变量配置
+const QQ_MUSIC_API_BASE = process.env.QQ_MUSIC_API_URL || 'http://localhost:3300';
+
 /**
- * 搜索歌曲（聚合多平台）
+ * 转发请求到 qq-music-api 服务
+ * @param path API 路径
+ * @param query 查询参数
+ * @returns 响应数据
+ */
+async function forwardToQQMusicApi(path: string, query?: Record<string, string>): Promise<any> {
+  const url = new URL(path, QQ_MUSIC_API_BASE);
+  if (query) {
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, value);
+      }
+    });
+  }
+
+  const response = await fetch(url.toString());
+  const data = await response.json();
+  
+  // 如果 qq-music-api 返回错误，抛出包含详细信息的错误
+  if (!response.ok || data.error) {
+    const errorMsg = data.error || data.message || `qq-music-api request failed: ${response.status} ${response.statusText}`;
+    throw new Error(errorMsg);
+  }
+  
+  return data;
+}
+
+/**
+ * 搜索歌曲（QQ音乐）
  * GET /api/external-songs/search?keyword=xxx&offset=0
  */
 router.get('/search', async (req, res) => {
@@ -15,17 +45,17 @@ router.get('/search', async (req, res) => {
       return res.status(400).json({ message: '请提供搜索关键词' });
     }
 
-    const result = await musicApi.searchSong(keyword, parseInt(offset as string));
+    const pageNo = Math.floor(parseInt(offset as string) / 20) + 1;
+    const result = await forwardToQQMusicApi('/search', {
+      key: keyword,
+      pageNo: pageNo.toString(),
+      pageSize: '20',
+      t: '0', // 0: 单曲
+    });
 
-    if (!result.status) {
-      return res.status(500).json({ message: '搜索失败', error: result });
-    }
-
-    // 格式化搜索结果，统一返回格式
+    // 格式化搜索结果
     const formattedResult = {
-      netease: formatSearchResult(result.data?.netease),
-      qq: formatSearchResult(result.data?.qq),
-      xiami: formatSearchResult(result.data?.xiami),
+      qq: formatQQSearchResult(result),
     };
 
     res.json({
@@ -41,38 +71,32 @@ router.get('/search', async (req, res) => {
 /**
  * 指定平台搜索歌曲
  * GET /api/external-songs/search/:vendor?keyword=xxx&offset=0
- * vendor: netease | qq | xiami
+ * vendor: qq (目前只支持QQ音乐)
  */
 router.get('/search/:vendor', async (req, res) => {
   try {
     const { vendor } = req.params;
     const { keyword, offset = '0' } = req.query;
 
-    if (!['netease', 'qq', 'xiami'].includes(vendor)) {
-      return res.status(400).json({ message: '不支持的音乐平台' });
+    if (vendor !== 'qq') {
+      return res.status(400).json({ message: '不支持的音乐平台，目前仅支持 qq' });
     }
 
     if (!keyword || typeof keyword !== 'string') {
       return res.status(400).json({ message: '请提供搜索关键词' });
     }
 
-    const vendorApi = (musicApi as any)[vendor];
-    if (!vendorApi || !vendorApi.searchSong) {
-      return res.status(400).json({ message: '该平台暂不支持搜索' });
-    }
-
-    const result = await vendorApi.searchSong({
-      keyword,
-      offset: parseInt(offset as string),
+    const pageNo = Math.floor(parseInt(offset as string) / 20) + 1;
+    const result = await forwardToQQMusicApi('/search', {
+      key: keyword,
+      pageNo: pageNo.toString(),
+      pageSize: '20',
+      t: '0', // 0: 单曲
     });
-
-    if (!result.status) {
-      return res.status(500).json({ message: '搜索失败', error: result });
-    }
 
     res.json({
       status: true,
-      data: formatSearchResult(result.data),
+      data: formatQQSearchResult(result),
     });
   } catch (error) {
     console.error('平台搜索歌曲错误:', error);
@@ -96,19 +120,19 @@ router.get('/detail', async (req, res) => {
       return res.status(400).json({ message: '请提供歌曲 ID' });
     }
 
-    if (!['netease', 'qq', 'xiami'].includes(vendor)) {
-      return res.status(400).json({ message: '不支持的音乐平台' });
+    if (vendor !== 'qq') {
+      return res.status(400).json({ message: '不支持的音乐平台，目前仅支持 qq' });
     }
 
-    const result = await musicApi.getSongDetail(vendor as any, id);
-
-    if (!result.status) {
-      return res.status(500).json({ message: '获取歌曲详情失败', error: result });
-    }
+    // QQ音乐通过歌曲链接获取详情，使用 song/urls 获取播放链接作为详情补充
+    const result = await forwardToQQMusicApi('/song/urls', {
+      id,
+      ownCookie: '1',
+    });
 
     res.json({
       status: true,
-      data: result.data,
+      data: result,
     });
   } catch (error) {
     console.error('获取歌曲详情错误:', error);
@@ -133,19 +157,18 @@ router.post('/batch-detail', async (req, res) => {
       return res.status(400).json({ message: '请提供歌曲 ID 数组' });
     }
 
-    if (!['netease', 'qq', 'xiami'].includes(vendor)) {
-      return res.status(400).json({ message: '不支持的音乐平台' });
+    if (vendor !== 'qq') {
+      return res.status(400).json({ message: '不支持的音乐平台，目前仅支持 qq' });
     }
 
-    const result = await musicApi.getBatchSongDetail(vendor as any, ids);
-
-    if (!result.status) {
-      return res.status(500).json({ message: '批量获取歌曲详情失败', error: result });
-    }
+    const result = await forwardToQQMusicApi('/song/urls', {
+      id: ids.join(','),
+      ownCookie: '1',
+    });
 
     res.json({
       status: true,
-      data: result.data,
+      data: result,
     });
   } catch (error) {
     console.error('批量获取歌曲详情错误:', error);
@@ -169,20 +192,20 @@ router.get('/url', async (req, res) => {
       return res.status(400).json({ message: '请提供歌曲 ID' });
     }
 
-    if (!['netease', 'qq', 'xiami'].includes(vendor)) {
-      return res.status(400).json({ message: '不支持的音乐平台' });
+    if (vendor !== 'qq') {
+      return res.status(400).json({ message: '不支持的音乐平台，目前仅支持 qq' });
     }
 
-    const result = await musicApi.getSongUrl(vendor as any, id);
+    const result = await forwardToQQMusicApi('/song/urls', {
+      id,
+      ownCookie: '1',
+    });
 
-    if (!result.status) {
-      return res.status(500).json({ message: '获取歌曲地址失败', error: result });
-    }
-
+    // qq-music-api 直接返回 {songId: url} 结构
     res.json({
       status: true,
       data: {
-        url: result.data?.url,
+        url: result[id] || null,
       },
     });
   } catch (error) {
@@ -207,20 +230,18 @@ router.get('/lyric', async (req, res) => {
       return res.status(400).json({ message: '请提供歌曲 ID' });
     }
 
-    if (!['netease', 'qq', 'xiami'].includes(vendor)) {
-      return res.status(400).json({ message: '不支持的音乐平台' });
+    if (vendor !== 'qq') {
+      return res.status(400).json({ message: '不支持的音乐平台，目前仅支持 qq' });
     }
 
-    const result = await musicApi.getLyric(vendor as any, id);
-
-    if (!result.status) {
-      return res.status(500).json({ message: '获取歌词失败', error: result });
-    }
+    const result = await forwardToQQMusicApi('/lyric', {
+      songmid: id,
+    });
 
     res.json({
       status: true,
       data: {
-        lyric: result.data,
+        lyric: result.data?.lyric || result.data,
       },
     });
   } catch (error) {
@@ -238,28 +259,19 @@ router.get('/artist/:vendor/:id', async (req, res) => {
     const { vendor, id } = req.params;
     const { offset = '0', limit = '50' } = req.query;
 
-    if (!['netease', 'qq', 'xiami'].includes(vendor)) {
-      return res.status(400).json({ message: '不支持的音乐平台' });
+    if (vendor !== 'qq') {
+      return res.status(400).json({ message: '不支持的音乐平台，目前仅支持 qq' });
     }
 
-    const vendorApi = (musicApi as any)[vendor];
-    if (!vendorApi || !vendorApi.getArtistSongs) {
-      return res.status(400).json({ message: '该平台暂不支持获取歌手单曲' });
-    }
-
-    const result = await vendorApi.getArtistSongs(
-      id,
-      parseInt(offset as string),
-      parseInt(limit as string)
-    );
-
-    if (!result.status) {
-      return res.status(500).json({ message: '获取歌手单曲失败', error: result });
-    }
+    const result = await forwardToQQMusicApi('/singer/songs', {
+      singermid: id,
+      page: (Math.floor(parseInt(offset as string) / parseInt(limit as string)) + 1).toString(),
+      num: limit as string,
+    });
 
     res.json({
       status: true,
-      data: result.data,
+      data: formatQQArtistSongs(result),
     });
   } catch (error) {
     console.error('获取歌手单曲错误:', error);
@@ -268,7 +280,65 @@ router.get('/artist/:vendor/:id', async (req, res) => {
 });
 
 /**
- * 格式化搜索结果
+ * 格式化 QQ 音乐搜索结果
+ */
+function formatQQSearchResult(data: any) {
+  if (!data) return null;
+
+  // QQ 音乐返回的数据结构处理
+  const list = data.data?.list || data.data?.song?.list || data.list || [];
+  const total = data.data?.totalnum || data.data?.song?.totalnum || list.length || 0;
+
+  return {
+    songs: list.map(formatQQSongItem),
+    total,
+  };
+}
+
+/**
+ * 格式化 QQ 音乐歌手歌曲列表
+ */
+function formatQQArtistSongs(data: any) {
+  if (!data) return null;
+
+  const list = data.data?.list || data.data?.songList || data.list || [];
+  const total = data.data?.total || data.data?.totalNum || list.length || 0;
+
+  return {
+    songs: list.map(formatQQSongItem),
+    total,
+  };
+}
+
+/**
+ * 格式化 QQ 音乐歌曲条目
+ */
+function formatQQSongItem(song: any) {
+  if (!song) return null;
+
+  // QQ 音乐的歌曲数据结构
+  const album = song.album || song.albummid ? {
+    id: song.albummid || song.album?.mid,
+    name: song.albumname || song.album?.name,
+  } : null;
+
+  const artists = song.singer?.map((s: any) => ({
+    id: s.mid,
+    name: s.name,
+  })) || (song.singername ? [{ id: song.singermid, name: song.singername }] : []);
+
+  return {
+    id: song.mid || song.songmid || song.id,
+    name: song.name || song.songname,
+    artists,
+    album,
+    duration: song.interval || song.duration || 0,
+    cp: song.pay?.pay_play === 1 || song.payplay === 1, // 版权限制
+  };
+}
+
+/**
+ * 格式化搜索结果（兼容旧格式）
  */
 function formatSearchResult(data: any) {
   if (!data) return null;
@@ -293,7 +363,7 @@ function formatSearchResult(data: any) {
 }
 
 /**
- * 格式化歌曲条目
+ * 格式化歌曲条目（兼容旧格式）
  */
 function formatSongItem(song: any) {
   if (!song) return null;

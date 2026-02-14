@@ -4,6 +4,25 @@ version: '3.8'
 # 使用方式: docker-compose -f docker-compose.prod.yml up -d
 
 services:
+  # QQ音乐API服务
+  qq-music-api:
+    build:
+      context: ./qq-music-api
+      dockerfile: Dockerfile
+    container_name: music-app-qq-music-api-prod
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3300
+    networks:
+      - music-app-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3300"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   backend:
     build:
       context: ./backend
@@ -15,9 +34,13 @@ services:
       - PORT=3001
       - DATABASE_URL=file:./prisma/prod.db
       - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      - QQ_MUSIC_API_URL=http://qq-music-api:3300
     volumes:
       - ./data/prisma:/app/prisma
       - ./data/uploads:/app/uploads
+    depends_on:
+      qq-music-api:
+        condition: service_healthy
     networks:
       - music-app-network
     healthcheck:
