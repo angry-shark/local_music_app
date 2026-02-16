@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { PlayIcon, ClockIcon, MagnifyingGlassIcon, CloudArrowDownIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import { PlayIcon, ClockIcon, MagnifyingGlassIcon, CloudArrowDownIcon, Cog6ToothIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { MusicalNoteIcon } from '@heroicons/react/24/solid';
 import api from '../utils/api';
 import { usePlayerStore } from '../stores/playerStore';
@@ -34,6 +34,9 @@ interface VendorSearchResult {
   xiami: SearchResult | null;
 }
 
+// Cookie 存储 key
+const QQ_COOKIE_STORAGE_KEY = 'qq_music_cookie';
+
 export default function ExternalSearch() {
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,7 +45,75 @@ export default function ExternalSearch() {
   const [error, setError] = useState('');
   const [playingSong, setPlayingSong] = useState<ExternalSong | null>(null);
   
+  // Cookie 设置相关状态
+  const [showCookieModal, setShowCookieModal] = useState(false);
+  const [cookieInput, setCookieInput] = useState('');
+  const [cookieStatus, setCookieStatus] = useState<{ hasCookie: boolean; cookiePreview: string | null } | null>(null);
+  const [savingCookie, setSavingCookie] = useState(false);
+  const [cookieMessage, setCookieMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
   const { setPlaylist, currentSong, isPlaying } = usePlayerStore();
+
+  // 页面加载时获取 cookie 状态和本地存储的 cookie
+  useEffect(() => {
+    checkCookieStatus();
+    const savedCookie = localStorage.getItem(QQ_COOKIE_STORAGE_KEY);
+    if (savedCookie) {
+      setCookieInput(savedCookie);
+    }
+  }, []);
+
+  // 检查服务器 cookie 状态
+  const checkCookieStatus = async () => {
+    try {
+      const response = await api.get('/external-songs/cookie/status');
+      if (response.data.status) {
+        setCookieStatus(response.data.data);
+      }
+    } catch (err) {
+      console.error('获取 Cookie 状态失败:', err);
+    }
+  };
+
+  // 保存 cookie 到服务器
+  const saveCookie = async () => {
+    if (!cookieInput.trim()) {
+      setCookieMessage({ type: 'error', text: '请输入 Cookie' });
+      return;
+    }
+
+    setSavingCookie(true);
+    setCookieMessage(null);
+
+    try {
+      const response = await api.post('/external-songs/cookie', { cookie: cookieInput.trim() });
+      if (response.data.status) {
+        setCookieMessage({ type: 'success', text: 'Cookie 设置成功！' });
+        localStorage.setItem(QQ_COOKIE_STORAGE_KEY, cookieInput.trim());
+        setCookieStatus({ hasCookie: true, cookiePreview: cookieInput.trim().slice(0, 50) + '...' });
+        setTimeout(() => setShowCookieModal(false), 1000);
+      } else {
+        setCookieMessage({ type: 'error', text: response.data.message || '设置失败' });
+      }
+    } catch (err: any) {
+      setCookieMessage({ type: 'error', text: err.response?.data?.message || '设置失败，请检查网络' });
+    } finally {
+      setSavingCookie(false);
+    }
+  };
+
+  // 清除 cookie
+  const clearCookie = async () => {
+    setCookieInput('');
+    localStorage.removeItem(QQ_COOKIE_STORAGE_KEY);
+    setCookieMessage(null);
+    try {
+      await api.post('/external-songs/cookie', { cookie: '' });
+      setCookieStatus({ hasCookie: false, cookiePreview: null });
+    } catch (err) {
+      console.error('清除 Cookie 失败:', err);
+    }
+  };
 
   // 执行搜索
   const handleSearch = async (e: React.FormEvent) => {
@@ -310,12 +381,31 @@ export default function ExternalSearch() {
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          <MusicalNoteIcon className="w-8 h-8 inline-block mr-2" style={{ color: 'var(--accent-primary)' }} />
-          搜索外部音乐
-        </h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            <MusicalNoteIcon className="w-8 h-8 inline-block mr-2" style={{ color: 'var(--accent-primary)' }} />
+            搜索外部音乐
+          </h1>
+          <button
+            onClick={() => setShowCookieModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:opacity-80"
+            style={{ 
+              backgroundColor: cookieStatus?.hasCookie ? 'var(--accent-success)' : 'var(--bg-tertiary)',
+              color: cookieStatus?.hasCookie ? '#ffffff' : 'var(--text-secondary)'
+            }}
+            title="设置 QQ 音乐 Cookie 以获取更高音质的播放链接"
+          >
+            <Cog6ToothIcon className="w-4 h-4" />
+            {cookieStatus?.hasCookie ? '已配置 Cookie' : '设置 Cookie'}
+          </button>
+        </div>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
           搜索网易云音乐、QQ音乐、虾米音乐的歌曲资源
+          {!cookieStatus?.hasCookie && (
+            <span className="block mt-1 text-xs" style={{ color: 'var(--accent-warning)' }}>
+              ⚠️ 提示：设置 QQ 音乐 Cookie 后可获取更高音质的播放链接
+            </span>
+          )}
         </p>
 
         {/* Search Form */}
@@ -349,6 +439,110 @@ export default function ExternalSearch() {
           </button>
         </form>
       </div>
+
+      {/* Cookie Setting Modal */}
+      {showCookieModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+             onClick={() => setShowCookieModal(false)}>
+          <div className="rounded-2xl p-6 max-w-lg w-full"
+               style={{ backgroundColor: 'var(--bg-card)' }}
+               onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+              设置 QQ 音乐 Cookie
+            </h2>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                Cookie 值
+              </label>
+              <textarea
+                value={cookieInput}
+                onChange={(e) => setCookieInput(e.target.value)}
+                placeholder="请从浏览器开发者工具中复制 QQ 音乐的 Cookie..."
+                className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 resize-none"
+                style={{ 
+                  backgroundColor: 'var(--bg-input)',
+                  borderColor: 'var(--border-primary)',
+                  color: 'var(--text-primary)',
+                  minHeight: '120px'
+                }}
+              />
+              <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                💡 提示：在浏览器中登录 QQ 音乐，按 F12 打开开发者工具，进入 Application/Storage → Cookies，
+                复制 y.qq.com 下的 cookie 字符串（包含 uin、qqmusic_key 等字段）
+              </p>
+            </div>
+
+            {/* Cookie Status */}
+            {cookieStatus && (
+              <div className="mb-4 p-3 rounded-lg"
+                   style={{ 
+                     backgroundColor: cookieStatus.hasCookie ? 'rgba(34, 197, 94, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                   }}>
+                <div className="flex items-center gap-2">
+                  {cookieStatus.hasCookie ? (
+                    <>
+                      <CheckCircleIcon className="w-5 h-5" style={{ color: 'var(--accent-success)' }} />
+                      <span style={{ color: 'var(--accent-success)' }}>服务器已配置 Cookie</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircleIcon className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                      <span style={{ color: 'var(--text-muted)' }}>服务器未配置 Cookie</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Message */}
+            {cookieMessage && (
+              <div className={`mb-4 p-3 rounded-lg ${
+                cookieMessage.type === 'success' 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                {cookieMessage.text}
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={saveCookie}
+                disabled={savingCookie}
+                className="flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                style={{ 
+                  backgroundColor: 'var(--accent-primary)',
+                  color: '#ffffff'
+                }}
+              >
+                {savingCookie ? '保存中...' : '保存'}
+              </button>
+              <button
+                onClick={clearCookie}
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:opacity-80"
+                style={{ 
+                  backgroundColor: 'var(--bg-tertiary)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                清除
+              </button>
+              <button
+                onClick={() => setShowCookieModal(false)}
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:opacity-80"
+                style={{ 
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Message */}
       {error && (

@@ -5,6 +5,63 @@ const router = (0, express_1.Router)();
 // qq-music-api 服务地址，可通过环境变量配置
 const QQ_MUSIC_API_BASE = process.env.QQ_MUSIC_API_URL || 'http://localhost:3300';
 /**
+ * 设置 QQ 音乐 Cookie
+ * POST /api/external-songs/cookie
+ * Body: { cookie: string }
+ */
+router.post('/cookie', async (req, res) => {
+    try {
+        const { cookie } = req.body;
+        if (!cookie || typeof cookie !== 'string') {
+            return res.status(400).json({ message: '请提供 cookie 参数' });
+        }
+        const response = await fetch(`${QQ_MUSIC_API_BASE}/set-cookie`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cookie }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            return res.status(500).json({
+                message: data.message || '设置 Cookie 失败',
+                status: false
+            });
+        }
+        res.json({
+            status: true,
+            message: data.message,
+            data: {
+                hasCookie: data.hasCookie,
+            },
+        });
+    }
+    catch (error) {
+        console.error('设置 Cookie 错误:', error);
+        res.status(500).json({ message: '设置 Cookie 失败', error: error.message });
+    }
+});
+/**
+ * 获取 QQ 音乐 Cookie 状态
+ * GET /api/external-songs/cookie/status
+ */
+router.get('/cookie/status', async (req, res) => {
+    try {
+        const response = await fetch(`${QQ_MUSIC_API_BASE}/cookie-status`);
+        const data = await response.json();
+        res.json({
+            status: true,
+            data: {
+                hasCookie: data.hasCookie,
+                cookiePreview: data.cookiePreview,
+            },
+        });
+    }
+    catch (error) {
+        console.error('获取 Cookie 状态错误:', error);
+        res.status(500).json({ message: '获取 Cookie 状态失败', error: error.message });
+    }
+});
+/**
  * 转发请求到 qq-music-api 服务
  * @param path API 路径
  * @param query 查询参数

@@ -13,9 +13,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3300
-      # 如需获取播放链接，请配置 QQ 音乐 Cookie（从浏览器复制）
+      # 可选：配置默认 QQ 音乐 Cookie（从浏览器复制）
+      # 如果不配置，可以通过前端设置 Cookie
       # - QQ_MUSIC_COOKIE=uin=123456;qqmusic_key=xxx;...
-      - QQ_MUSIC_COOKIE=wxuin=1152921504779536828; qqmusic_key=W_X_63B0amGacq7BivkK9VGzGsZKaE7r5nNs_0Zx4hMgxaaWkBYWBQxvtcatNtAXMzbNat-9smzHAOry5omrVjN1oDx5vTcZtQQ; login_type=2; uin=1152921504779536828
     networks:
       - music-app-network
 
