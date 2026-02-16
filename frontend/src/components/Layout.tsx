@@ -18,6 +18,9 @@ import {
   XMarkIcon,
   SunIcon,
   MoonIcon,
+  ArrowPathIcon,
+  ArrowsRightLeftIcon,
+  ListBulletIcon,
 } from '@heroicons/react/24/outline';
 import { formatTime } from '../utils/format';
 import { useState, useEffect } from 'react';
@@ -33,12 +36,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     progress, 
     duration, 
     volume,
+    playMode,
     togglePlay, 
     playNext, 
     playPrev,
     seek,
     setVolume,
-    initAudio
+    initAudio,
+    togglePlayMode
   } = usePlayerStore();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -61,57 +66,73 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const playModeIcons = {
+    sequence: { icon: ListBulletIcon, label: '顺序播放' },
+    random: { icon: ArrowsRightLeftIcon, label: '随机播放' },
+    single: { icon: ArrowPathIcon, label: '单曲循环' },
+  };
+
+  const PlayModeIcon = playModeIcons[playMode].icon;
+
   return (
-    <div className="min-h-screen transition-colors duration-300" 
-         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b transition-colors duration-300"
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      {/* Modern Glass Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
               style={{ 
-                backgroundColor: resolvedTheme === 'dark' ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                borderColor: 'var(--border-primary)'
+                backgroundColor: resolvedTheme === 'dark' ? 'rgba(9, 9, 11, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderBottom: '1px solid var(--border-primary)',
               }}>
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <MusicalNoteIcon className="w-6 h-6 text-white" />
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          {/* Modern Logo */}
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center relative overflow-hidden"
+                 style={{ background: 'var(--gradient-primary)' }}>
+              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+              <MusicalNoteIcon className="w-6 h-6 text-white relative z-10" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent hidden sm:block">
+            <span className="text-xl font-bold gradient-text hidden sm:block">
               MusicApp
             </span>
           </Link>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          {/* Modern Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-1 p-1 rounded-2xl"
+               style={{ 
+                 backgroundColor: 'var(--bg-tertiary)',
+                 borderRadius: 'var(--radius-xl)',
+               }}>
             {navItems.map(item => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                className={`px-4 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 text-sm font-medium ${
                   isActive(item.path)
-                    ? 'font-semibold'
-                    : 'opacity-70 hover:opacity-100'
+                    ? 'shadow-md'
+                    : 'hover:opacity-80'
                 }`}
                 style={{
-                  backgroundColor: isActive(item.path) ? 'var(--accent-primary)' : 'transparent',
-                  color: isActive(item.path) ? '#ffffff' : 'var(--text-secondary)',
+                  backgroundColor: isActive(item.path) ? 'var(--bg-secondary)' : 'transparent',
+                  color: isActive(item.path) ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  boxShadow: isActive(item.path) ? 'var(--shadow-sm)' : 'none',
                 }}
               >
-                <item.icon className="w-5 h-5" />
+                <item.icon className="w-4 h-4" />
                 <span>{item.label}</span>
               </Link>
             ))}
           </nav>
 
-          {/* User Actions */}
-          <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
+          {/* Modern User Actions */}
+          <div className="flex items-center gap-3">
+            {/* Modern Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg transition-all duration-200 hover:scale-110"
+              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110"
               style={{ 
                 backgroundColor: 'var(--bg-tertiary)',
-                color: 'var(--text-secondary)'
+                color: 'var(--text-secondary)',
               }}
               title={resolvedTheme === 'dark' ? '切换到亮色' : '切换到暗色'}
             >
@@ -128,43 +149,45 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {isArtistOrAdmin() && (
                   <Link
                     to="/admin"
-                    className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
-                      location.pathname.startsWith('/admin')
-                        ? 'font-semibold'
-                        : 'opacity-70 hover:opacity-100'
-                    }`}
+                    className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 text-sm font-medium`}
                     style={{
-                      backgroundColor: location.pathname.startsWith('/admin') ? 'var(--accent-secondary)' : 'transparent',
-                      color: location.pathname.startsWith('/admin') ? '#ffffff' : 'var(--text-secondary)',
+                      backgroundColor: location.pathname.startsWith('/admin') ? 'var(--gradient-primary-soft)' : 'var(--bg-tertiary)',
+                      color: location.pathname.startsWith('/admin') ? 'var(--accent-primary)' : 'var(--text-secondary)',
                     }}
                   >
-                    <Cog6ToothIcon className="w-5 h-5" />
+                    <Cog6ToothIcon className="w-4 h-4" />
                     <span>后台</span>
                   </Link>
                 )}
                 
-                {/* User Menu */}
+                {/* Modern User Menu */}
                 <Link
                   to="/profile"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:opacity-80"
-                  style={{ backgroundColor: 'var(--bg-tertiary)' }}
+                  className="flex items-center gap-3 px-2 pr-4 py-1.5 rounded-2xl transition-all duration-300 hover:scale-105"
+                  style={{ 
+                    backgroundColor: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border-primary)',
+                  }}
                 >
                   {user.avatar ? (
-                    <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
+                    <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-xl object-cover" />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold text-white"
+                         style={{ background: 'var(--gradient-primary)' }}>
                       {user.username[0]?.toUpperCase()}
                     </div>
                   )}
-                  <span className="hidden sm:block text-sm font-medium">{user.username}</span>
+                  <span className="hidden sm:block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {user.username}
+                  </span>
                 </Link>
 
                 <button
                   onClick={handleLogout}
-                  className="p-2 rounded-lg transition-all duration-200 hover:opacity-80"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110"
                   style={{ 
                     backgroundColor: 'var(--bg-tertiary)',
-                    color: 'var(--text-tertiary)'
+                    color: 'var(--text-muted)',
                   }}
                 >
                   <ArrowRightOnRectangleIcon className="w-5 h-5" />
@@ -173,11 +196,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             ) : (
               <Link
                 to="/login"
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:opacity-90"
-                style={{ 
-                  backgroundColor: 'var(--accent-primary)',
-                  color: '#ffffff'
-                }}
+                className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-105 btn-gradient"
               >
                 登录
               </Link>
@@ -186,38 +205,39 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg transition-colors"
+              className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300"
               style={{ 
                 backgroundColor: 'var(--bg-tertiary)',
-                color: 'var(--text-secondary)'
+                color: 'var(--text-secondary)',
               }}
             >
-              {mobileMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+              {mobileMenuOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Modern Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t transition-colors duration-300"
+          <div className="md:hidden border-t p-4"
                style={{ 
-                 backgroundColor: 'var(--bg-elevated)',
-                 borderColor: 'var(--border-primary)'
+                 backgroundColor: resolvedTheme === 'dark' ? 'rgba(9, 9, 11, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                 backdropFilter: 'blur(20px)',
+                 borderColor: 'var(--border-primary)',
                }}>
-            <nav className="px-4 py-2 space-y-1">
+            <nav className="space-y-2">
               {navItems.map(item => (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium ${
                     isActive(item.path)
-                      ? 'font-semibold'
-                      : 'opacity-70'
+                      ? ''
+                      : 'hover:opacity-80'
                   }`}
                   style={{
-                    backgroundColor: isActive(item.path) ? 'var(--accent-primary)' : 'transparent',
-                    color: isActive(item.path) ? '#ffffff' : 'var(--text-secondary)',
+                    backgroundColor: isActive(item.path) ? 'var(--gradient-primary-soft)' : 'var(--bg-tertiary)',
+                    color: isActive(item.path) ? 'var(--accent-primary)' : 'var(--text-secondary)',
                   }}
                 >
                   <item.icon className="w-5 h-5" />
@@ -228,14 +248,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link
                   to="/admin"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                    location.pathname.startsWith('/admin')
-                      ? 'font-semibold'
-                      : 'opacity-70'
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium`}
                   style={{
-                    backgroundColor: location.pathname.startsWith('/admin') ? 'var(--accent-secondary)' : 'transparent',
-                    color: location.pathname.startsWith('/admin') ? '#ffffff' : 'var(--text-secondary)',
+                    backgroundColor: location.pathname.startsWith('/admin') ? 'var(--gradient-primary-soft)' : 'var(--bg-tertiary)',
+                    color: location.pathname.startsWith('/admin') ? 'var(--accent-primary)' : 'var(--text-secondary)',
                   }}
                 >
                   <Cog6ToothIcon className="w-5 h-5" />
@@ -247,101 +263,141 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 pt-16 pb-32">
+      {/* Main Content with padding for fixed header and player */}
+      <main className="flex-1 pt-20 pb-36">
         {children}
       </main>
 
-      {/* Player Bar */}
+      {/* Modern Glass Player Bar */}
       {currentSong && (
-        <div className="fixed bottom-0 left-0 right-0 backdrop-blur-md border-t z-50 transition-colors duration-300"
+        <div className="fixed bottom-0 left-0 right-0 z-50 transition-all duration-300"
              style={{ 
-               backgroundColor: resolvedTheme === 'dark' ? 'rgba(15, 23, 42, 0.98)' : 'rgba(255, 255, 255, 0.98)',
-               borderColor: 'var(--border-primary)'
+               backgroundColor: resolvedTheme === 'dark' ? 'rgba(9, 9, 11, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+               backdropFilter: 'blur(20px)',
+               WebkitBackdropFilter: 'blur(20px)',
+               borderTop: '1px solid var(--border-primary)',
              }}>
-          {/* Progress Bar */}
-          <div className="w-full h-1 cursor-pointer group"
-               style={{ backgroundColor: 'var(--bg-tertiary)' }}
+          {/* Modern Progress Bar */}
+          <div className="w-full h-1 cursor-pointer group relative"
                onClick={(e) => {
                  const rect = e.currentTarget.getBoundingClientRect();
                  const percent = (e.clientX - rect.left) / rect.width;
                  seek(percent * duration);
                }}>
+            <div className="absolute inset-0" style={{ backgroundColor: 'var(--bg-tertiary)' }} />
             <div 
-              className="h-full transition-all duration-100"
+              className="absolute inset-y-0 left-0 transition-all duration-100"
               style={{ 
-                width: `${(progress / duration) * 100}%`,
-                background: 'linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))'
+                width: `${duration ? (progress / duration) * 100 : 0}%`,
+                background: 'var(--gradient-primary)',
               }}
+            />
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              style={{ left: `calc(${duration ? (progress / duration) * 100 : 0}% - 6px)` }}
             />
           </div>
 
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-            {/* Song Info */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <img
-                src={currentSong.coverUrl || 'https://via.placeholder.com/48'}
-                alt={currentSong.title}
-                className="w-12 h-12 rounded-lg object-cover"
-              />
+          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-6">
+            {/* Modern Song Info */}
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <div className="relative group">
+                <img
+                  src={currentSong.coverUrl || 'https://via.placeholder.com/48'}
+                  alt={currentSong.title}
+                  className="w-14 h-14 rounded-xl object-cover shadow-lg"
+                />
+                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                     style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%)' }} />
+              </div>
               <div className="min-w-0">
-                <h4 className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                <h4 className="font-semibold truncate text-sm" style={{ color: 'var(--text-primary)' }}>
                   {currentSong.title}
                 </h4>
-                <p className="text-sm truncate" style={{ color: 'var(--text-tertiary)' }}>
+                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
                   {currentSong.artistName}
                 </p>
               </div>
             </div>
 
-            {/* Controls */}
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={playPrev}
-                className="p-2 rounded-lg transition-colors hover:opacity-70"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                <BackwardIcon className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={togglePlay}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105"
-                style={{ 
-                  background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-                  color: '#ffffff'
-                }}
-              >
-                {isPlaying ? (
-                  <PauseIcon className="w-6 h-6" />
-                ) : (
-                  <PlayIcon className="w-6 h-6 ml-0.5" />
-                )}
-              </button>
-              <button 
-                onClick={playNext}
-                className="p-2 rounded-lg transition-colors hover:opacity-70"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                <ForwardIcon className="w-5 h-5" />
-              </button>
+            {/* Modern Center Controls */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-3">
+                {/* Play Mode Button */}
+                <button 
+                  onClick={togglePlayMode}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-110"
+                  style={{ 
+                    color: 'var(--text-muted)',
+                    backgroundColor: 'var(--bg-tertiary)',
+                  }}
+                  title={playModeIcons[playMode].label}
+                >
+                  <PlayModeIcon className="w-4 h-4" />
+                </button>
+                
+                {/* Previous Button */}
+                <button 
+                  onClick={playPrev}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-110"
+                  style={{ 
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--bg-tertiary)',
+                  }}
+                >
+                  <BackwardIcon className="w-5 h-5" />
+                </button>
+                
+                {/* Play/Pause Button */}
+                <button 
+                  onClick={togglePlay}
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-105"
+                  style={{ 
+                    background: 'var(--gradient-primary)',
+                    color: '#ffffff',
+                    boxShadow: 'var(--shadow-md)',
+                  }}
+                >
+                  {isPlaying ? (
+                    <PauseIcon className="w-6 h-6" />
+                  ) : (
+                    <PlayIcon className="w-6 h-6 ml-0.5" />
+                  )}
+                </button>
+                
+                {/* Next Button */}
+                <button 
+                  onClick={playNext}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-110"
+                  style={{ 
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--bg-tertiary)',
+                  }}
+                >
+                  <ForwardIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            {/* Volume & Time */}
+            {/* Modern Volume & Time Controls */}
             <div className="hidden sm:flex items-center gap-4 flex-1 justify-end">
-              <span className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+              <span className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
                 {formatTime(progress)} / {formatTime(duration)}
               </span>
-              <div className="flex items-center gap-2">
-                <SpeakerWaveIcon className="w-5 h-5" style={{ color: 'var(--text-tertiary)' }} />
+              <div className="flex items-center gap-2 p-2 rounded-xl" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                <SpeakerWaveIcon className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                 <input
                   type="range"
                   min="0"
                   max="1"
-                  step="0.1"
+                  step="0.01"
                   value={volume}
                   onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-24 accent-blue-500"
-                  style={{ accentColor: 'var(--accent-primary)' }}
+                  className="w-20 h-1 rounded-full appearance-none cursor-pointer"
+                  style={{ 
+                    backgroundColor: 'var(--border-secondary)',
+                    accentColor: 'var(--accent-primary)',
+                  }}
                 />
               </div>
             </div>
